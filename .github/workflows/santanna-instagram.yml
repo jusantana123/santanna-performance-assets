@@ -1,0 +1,155 @@
+name: Santanna Instagram Publisher
+
+on:
+  schedule:
+    - cron: "0 14 * * 2,4,6"
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "validate validates the next post; publish creates and publishes one approved carousel."
+        required: true
+        default: "validate"
+        type: choice
+        options:
+          - validate
+          - publish
+      post_number:
+        description: "Post number to publish after an explicit approval."
+        required: false
+        type: string
+      confirm_publish:
+        description: "Must be true for a publish run."
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  group: santanna-instagram
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate scheduled carousel
+    runs-on: ubuntu-latest
+    outputs:
+      selected_post: \${{ steps.select.outputs.post_number }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - id: select
+        name: Select and validate the next due post
+        env:
+          MODE: \${{ inputs.mode || 'validate' }}
+          REQUESTED_POST: \${{ inputs.post_number || '' }}
+          ASSET_BASE: https://raw.githubusercontent.com/jusantana123/santanna-performance-assets/main
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const queue = JSON.parse(fs.readFileSync('instagram/queue.json', 'utf8'));
+          const now = Date.now();
+          const chosen = process.env.REQUESTED_POST
+            ? queue.posts.find((post) => post.order === Number(process.env.REQUESTED_POST))
+            : queue.posts.find((post) =>
+                post.status === 'scheduled_for_approval' &&
+                Date.parse(post.scheduled_for) <= now
+              );
+
+          if (!chosen) {
+            console.log('No due post is waiting for approval.');
+            process.exit(0);
+          }
+          if (chosen.status !== 'scheduled_for_approval') {
+            throw new Error('The selected post is not awaiting approval.');
+          }
+          if (!Array.isArray(chosen.images) || chosen.images.length < 4 || chosen.images.length > 7) {
+            throw new Error('A carousel must contain 4 to 7 slides.');
+          }
+          for (const image of chosen.images) {
+            const url = \`\${process.env.ASSET_BASE}/\${image}\`;
+            const response = await fetch(url, { method: 'HEAD' });
+            const contentType = response.headers.get('content-type') || '';
+            if (!response.ok || !contentType.startsWith('image/png')) {
+              throw new Error(\`Public PNG unavailable: \${image}\`);
+            }
+          }
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, \`post_number=\${chosen.order}\\n\`);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            \`## Post ready for approval\\n\\n**#\${chosen.order} — \${chosen.title}**\\n\\nScheduled for \${chosen.scheduled_for}. All \${chosen.images.length} public PNG slides were verified.\\n\`);
+          NODE
+
+  publish:
+    name: Publish approved carousel
+    needs: validate
+    if: \${{ github.event_name == 'workflow_dispatch' && inputs.mode == 'publish' && inputs.confirm_publish == true && needs.validate.outputs.selected_post != '' }}
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Create and publish the approved carousel
+        env:
+          POST_NUMBER: \${{ needs.validate.outputs.selected_post }}
+          INSTAGRAM_ACCESS_TOKEN: \${{ secrets.INSTAGRAM_ACCESS_TOKEN }}
+          IG_USER_ID: "17841432898856166"
+          ASSET_BASE: https://raw.githubusercontent.com/jusantana123/santanna-performance-assets/main
+          GRAPH_API_VERSION: v25.0
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const queue = JSON.parse(fs.readFileSync('instagram/queue.json', 'utf8'));
+          const post = queue.posts.find((item) => item.order === Number(process.env.POST_NUMBER));
+          if (!post || post.status !== 'scheduled_for_approval') throw new Error('Post unavailable for publication.');
+          if (!process.env.INSTAGRAM_ACCESS_TOKEN) throw new Error('Instagram token is not configured.');
+
+          const root = \`https://graph.instagram.com/\${process.env.GRAPH_API_VERSION}\`;
+          async function graphPost(path, params) {
+            const response = await fetch(\`\${root}/\${path}\`, {
+              method: 'POST',
+              headers: { 'content-type': 'application/x-www-form-urlencoded' },
+              body: new URLSearchParams({ ...params, access_token: process.env.INSTAGRAM_ACCESS_TOKEN })
+            });
+            if (!response.ok) throw new Error(\`Instagram API POST failed (\${response.status}).\`);
+            return response.json();
+          }
+          async function graphGet(path) {
+            const response = await fetch(\`\${root}/\${path}?fields=status_code,permalink&access_token=\${encodeURIComponent(process.env.INSTAGRAM_ACCESS_TOKEN)}\`);
+            if (!response.ok) throw new Error(\`Instagram API status check failed (\${response.status}).\`);
+            return response.json();
+          }
+
+          const children = [];
+          for (const image of post.images) {
+            const media = await graphPost(\`\${process.env.IG_USER_ID}/media\`, {
+              image_url: \`\${process.env.ASSET_BASE}/\${image}\`,
+              is_carousel_item: 'true'
+            });
+            if (!media.id) throw new Error('Instagram did not return a slide container.');
+            children.push(media.id);
+          }
+
+          const carousel = await graphPost(\`\${process.env.IG_USER_ID}/media\`, {
+            media_type: 'CAROUSEL',
+            children: children.join(','),
+            caption: post.caption
+          });
+          if (!carousel.id) throw new Error('Instagram did not return a carousel container.');
+
+          let status = '';
+          for (let attempt = 0; attempt < 18; attempt += 1) {
+            await new Promise((resolve) => setTimeout(resolve, 10000));
+            const container = await graphGet(carousel.id);
+            status = container.status_code || '';
+            if (status === 'FINISHED') break;
+            if (status === 'ERROR' || status === 'EXPIRED') throw new Error(\`Carousel processing ended with \${status}.\`);
+          }
+          if (status !== 'FINISHED') throw new Error('Carousel was not ready before the timeout.');
+
+          const published = await graphPost(\`\${process.env.IG_USER_ID}/media_publish\`, { creation_id: carousel.id });
+          if (!published.id) throw new Error('Instagram did not return a published media id.');
+          const result = await graphGet(published.id);
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
+            \`## Published\\n\\n**#\${post.order} — \${post.title}**\\n\\n\${result.permalink || 'Published successfully.'}\\n\`);
+          NODE
