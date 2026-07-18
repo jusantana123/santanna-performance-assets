@@ -3,6 +3,6 @@
   "publish": true,
   "approved_at": "2026-07-18T20:34:54.734Z",
   "approval_scope": "Explicit publication confirmation from Julia in Codex",
-  "retry_authorized_at": "2026-07-18T20:42:15.034Z",
-  "retry_reason": "Previous run reached publish setup but stopped before Instagram API contact because of output newline correction."
+  "retry_authorized_at": "2026-07-18T20:49:00.306Z",
+  "retry_reason": "Previous run created the carousel but stopped before media_publish because container status and published media fields were queried together."
 }
