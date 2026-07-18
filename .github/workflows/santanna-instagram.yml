@@ -130,8 +130,8 @@ jobs:
             if (!response.ok) throw new Error(`Instagram API POST failed (${response.status}).`);
             return response.json();
           }
-          async function graphGet(path) {
-            const response = await fetch(`${root}/${path}?fields=status_code,permalink&access_token=${encodeURIComponent(process.env.INSTAGRAM_ACCESS_TOKEN)}`);
+          async function graphGet(path, fields) {
+            const response = await fetch(`${root}/${path}?fields=${encodeURIComponent(fields)}&access_token=${encodeURIComponent(process.env.INSTAGRAM_ACCESS_TOKEN)}`);
             if (!response.ok) throw new Error(`Instagram API status check failed (${response.status}).`);
             return response.json();
           }
@@ -156,7 +156,7 @@ jobs:
           let status = '';
           for (let attempt = 0; attempt < 18; attempt += 1) {
             await new Promise((resolve) => setTimeout(resolve, 10000));
-            const container = await graphGet(carousel.id);
+            const container = await graphGet(carousel.id, 'status_code');
             status = container.status_code || '';
             if (status === 'FINISHED') break;
             if (status === 'ERROR' || status === 'EXPIRED') throw new Error(`Carousel processing ended with ${status}.`);
@@ -165,7 +165,7 @@ jobs:
 
           const published = await graphPost(`${process.env.IG_USER_ID}/media_publish`, { creation_id: carousel.id });
           if (!published.id) throw new Error('Instagram did not return a published media id.');
-          const result = await graphGet(published.id);
+          const result = await graphGet(published.id, 'permalink');
           console.log(`Published permalink: ${result.permalink || published.id}`);
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
             `## Published\n\n**#${post.order} — ${post.title}**\n\n${result.permalink || 'Published successfully.'}\n`);
