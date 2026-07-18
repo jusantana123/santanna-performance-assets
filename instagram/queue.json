@@ -12,7 +12,7 @@
     },
     {
       "order": 2,
-      "status": "scheduled_for_approval",
+      "status": "published",
       "scheduled_for": "2026-07-18T11:00:00-03:00",
       "pillar": "Estratégia",
       "title": "Custo de aquisição",
@@ -23,7 +23,11 @@
         "post-02-custo-aquisicao-slide-03.png",
         "post-02-custo-aquisicao-slide-04.png",
         "post-02-custo-aquisicao-slide-05.png"
-      ]
+      ],
+      "published_at": "2026-07-18T20:50:52Z",
+      "published_permalink": "https://www.instagram.com/p/Da8sE-5Ab8A/",
+      "published_format": "carousel_5_slides",
+      "performance_review_at": "2026-07-21T20:50:52Z"
     },
     {
       "order": 3,
