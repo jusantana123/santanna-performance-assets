@@ -81,16 +81,16 @@ jobs:
             throw new Error('A carousel must contain 4 to 7 slides.');
           }
           for (const image of chosen.images) {
-            const url = \`${process.env.ASSET_BASE}/${image}\`;
+            const url = `${process.env.ASSET_BASE}/${image}`;
             const response = await fetch(url, { method: 'HEAD' });
             const contentType = response.headers.get('content-type') || '';
             if (!response.ok || !contentType.startsWith('image/png')) {
-              throw new Error(\`Public PNG unavailable: ${image}\`);
+              throw new Error(`Public PNG unavailable: ${image}`);
             }
           }
-          fs.appendFileSync(process.env.GITHUB_OUTPUT, \`post_number=${chosen.order}\\n\`);
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `post_number=${chosen.order}\\n`);
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-            \`## Post ready for approval\\n\\n**#${chosen.order} — ${chosen.title}**\\n\\nScheduled for ${chosen.scheduled_for}. All ${chosen.images.length} public PNG slides were verified.\\n\`);
+            `## Post ready for approval\\n\\n**#${chosen.order} — ${chosen.title}**\\n\\nScheduled for ${chosen.scheduled_for}. All ${chosen.images.length} public PNG slides were verified.\\n`);
           NODE
 
   publish:
@@ -117,33 +117,33 @@ jobs:
           if (!post || post.status !== 'scheduled_for_approval') throw new Error('Post unavailable for publication.');
           if (!process.env.INSTAGRAM_ACCESS_TOKEN) throw new Error('Instagram token is not configured.');
 
-          const root = \`https://graph.instagram.com/${process.env.GRAPH_API_VERSION}\`;
+          const root = `https://graph.instagram.com/${process.env.GRAPH_API_VERSION}`;
           async function graphPost(path, params) {
-            const response = await fetch(\`${root}/${path}\`, {
+            const response = await fetch(`${root}/${path}`, {
               method: 'POST',
               headers: { 'content-type': 'application/x-www-form-urlencoded' },
               body: new URLSearchParams({ ...params, access_token: process.env.INSTAGRAM_ACCESS_TOKEN })
             });
-            if (!response.ok) throw new Error(\`Instagram API POST failed (${response.status}).\`);
+            if (!response.ok) throw new Error(`Instagram API POST failed (${response.status}).`);
             return response.json();
           }
           async function graphGet(path) {
-            const response = await fetch(\`${root}/${path}?fields=status_code,permalink&access_token=${encodeURIComponent(process.env.INSTAGRAM_ACCESS_TOKEN)}\`);
-            if (!response.ok) throw new Error(\`Instagram API status check failed (${response.status}).\`);
+            const response = await fetch(`${root}/${path}?fields=status_code,permalink&access_token=${encodeURIComponent(process.env.INSTAGRAM_ACCESS_TOKEN)}`);
+            if (!response.ok) throw new Error(`Instagram API status check failed (${response.status}).`);
             return response.json();
           }
 
           const children = [];
           for (const image of post.images) {
-            const media = await graphPost(\`${process.env.IG_USER_ID}/media\`, {
-              image_url: \`${process.env.ASSET_BASE}/${image}\`,
+            const media = await graphPost(`${process.env.IG_USER_ID}/media`, {
+              image_url: `${process.env.ASSET_BASE}/${image}`,
               is_carousel_item: 'true'
             });
             if (!media.id) throw new Error('Instagram did not return a slide container.');
             children.push(media.id);
           }
 
-          const carousel = await graphPost(\`${process.env.IG_USER_ID}/media\`, {
+          const carousel = await graphPost(`${process.env.IG_USER_ID}/media`, {
             media_type: 'CAROUSEL',
             children: children.join(','),
             caption: post.caption
@@ -156,14 +156,14 @@ jobs:
             const container = await graphGet(carousel.id);
             status = container.status_code || '';
             if (status === 'FINISHED') break;
-            if (status === 'ERROR' || status === 'EXPIRED') throw new Error(\`Carousel processing ended with ${status}.\`);
+            if (status === 'ERROR' || status === 'EXPIRED') throw new Error(`Carousel processing ended with ${status}.`);
           }
           if (status !== 'FINISHED') throw new Error('Carousel was not ready before the timeout.');
 
-          const published = await graphPost(\`${process.env.IG_USER_ID}/media_publish\`, { creation_id: carousel.id });
+          const published = await graphPost(`${process.env.IG_USER_ID}/media_publish`, { creation_id: carousel.id });
           if (!published.id) throw new Error('Instagram did not return a published media id.');
           const result = await graphGet(published.id);
           console.log(`Published permalink: ${result.permalink || published.id}`);
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
-            \`## Published\\n\\n**#${post.order} — ${post.title}**\\n\\n${result.permalink || 'Published successfully.'}\\n\`);
+            `## Published\\n\\n**#${post.order} — ${post.title}**\\n\\n${result.permalink || 'Published successfully.'}\\n`);
           NODE
