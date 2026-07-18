@@ -50,6 +50,7 @@ jobs:
           ASSET_BASE: https://raw.githubusercontent.com/jusantana123/santanna-performance-assets/main
         run: |
           node <<'NODE'
+          (async () => {
           const fs = require('fs');
           const queue = JSON.parse(fs.readFileSync('instagram/queue.json', 'utf8'));
           const now = Date.now();
@@ -91,6 +92,7 @@ jobs:
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `post_number=${chosen.order}\\n`);
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
             `## Post ready for approval\\n\\n**#${chosen.order} — ${chosen.title}**\\n\\nScheduled for ${chosen.scheduled_for}. All ${chosen.images.length} public PNG slides were verified.\\n`);
+          })().catch((error) => { console.error(error); process.exit(1); });
           NODE
 
   publish:
@@ -111,6 +113,7 @@ jobs:
           GRAPH_API_VERSION: v25.0
         run: |
           node <<'NODE'
+          (async () => {
           const fs = require('fs');
           const queue = JSON.parse(fs.readFileSync('instagram/queue.json', 'utf8'));
           const post = queue.posts.find((item) => item.order === Number(process.env.POST_NUMBER));
@@ -166,4 +169,5 @@ jobs:
           console.log(`Published permalink: ${result.permalink || published.id}`);
           fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY,
             `## Published\\n\\n**#${post.order} — ${post.title}**\\n\\n${result.permalink || 'Published successfully.'}\\n`);
+          })().catch((error) => { console.error(error); process.exit(1); });
           NODE
