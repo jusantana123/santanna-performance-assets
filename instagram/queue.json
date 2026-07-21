@@ -31,7 +31,7 @@
     },
     {
       "order": 3,
-      "status": "scheduled_for_approval",
+      "status": "published",
       "scheduled_for": "2026-07-21T11:00:00-03:00",
       "pillar": "Convite",
       "title": "Consultoria individual",
@@ -42,7 +42,11 @@
         "post-03-consultoria-slide-03.png",
         "post-03-consultoria-slide-04.png",
         "post-03-consultoria-slide-05.png"
-      ]
+      ],
+      "published_at": "2026-07-21T15:43:12Z",
+      "published_permalink": "https://www.instagram.com/p/DbD3P0SGrS6/",
+      "published_format": "carousel_5_slides",
+      "performance_review_at": "2026-07-24T15:43:12Z"
     },
     {
       "order": 4,
