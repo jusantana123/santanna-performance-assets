@@ -50,7 +50,7 @@
     },
     {
       "order": 4,
-      "status": "scheduled_for_approval",
+      "status": "published",
       "scheduled_for": "2026-07-23T11:00:00-03:00",
       "pillar": "Diagnóstico",
       "title": "Leads que não viram vendas",
@@ -61,7 +61,11 @@
         "post-04-leads-nao-vendas-slide-03.png",
         "post-04-leads-nao-vendas-slide-04.png",
         "post-04-leads-nao-vendas-slide-05.png"
-      ]
+      ],
+      "published_at": "2026-07-23T14:18:00Z",
+      "published_permalink": "https://www.instagram.com/p/DbI3FufG8GK/",
+      "published_format": "carousel_5_slides",
+      "performance_review_at": "2026-07-26T14:18:00Z"
     },
     {
       "order": 5,
