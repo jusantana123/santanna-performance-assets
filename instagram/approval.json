@@ -1,10 +1,8 @@
 {
-  "post_number": 3,
-  "publish": false,
-  "approved_at": "2026-07-21T15:41:57.178Z",
+  "post_number": 4,
+  "publish": true,
+  "approved_at": "2026-07-23T14:11:50.932Z",
   "approval_scope": "Explicit publication confirmation from Julia in Codex",
   "retry_authorized_at": "2026-07-18T20:49:00.306Z",
-  "retry_reason": "Previous run created the carousel but stopped before media_publish because container status and published media fields were queried together.",
-  "completed_at": "2026-07-21T15:43:12Z",
-  "completion": "Post 3 published successfully; future posts require a new explicit approval."
+  "retry_reason": "Previous run created the carousel but stopped before media_publish because container status and published media fields were queried together."
 }
